@@ -1,5 +1,7 @@
 package api.tests;
 
+import api.utils.enums.FailedStatusCodes;
+import api.utils.enums.SuccessStatusCodes;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
 import io.restassured.response.Response;
@@ -8,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static api.helpers.ApiHelper.graphqlSpec;
+import static api.helpers.ApiHelper.graphPost;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -31,8 +33,8 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
-        response.then().statusCode(200);
+        Response response = graphPost(body);
+        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
 
         List<?> results = response.path("data.characters.results");
         Integer pages = response.path("data.characters.info.pages");
@@ -51,11 +53,17 @@ class GraphQlTest {
                 { "query": "{ characters(page: 2) { results { id } } }" }
                 """;
 
-        List<String> ids1 = graphqlSpec().body(page1).when().post()
-                .then().statusCode(200).extract().jsonPath().getList("data.characters.results.id");
+        List<String> ids1 = graphPost(page1).then()
+                .statusCode(SuccessStatusCodes.OK.getStatusCode())
+                .extract()
+                .jsonPath()
+                .getList("data.characters.results.id");
 
-        List<String> ids2 = graphqlSpec().body(page2).when().post()
-                .then().statusCode(200).extract().jsonPath().getList("data.characters.results.id");
+        List<String> ids2 = graphPost(page2).then()
+                .statusCode(SuccessStatusCodes.OK.getStatusCode())
+                .extract()
+                .jsonPath()
+                .getList("data.characters.results.id");
 
         assertThat(ids1).doesNotContainAnyElementsOf(ids2);
     }
@@ -69,8 +77,8 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
-        response.then().statusCode(200);
+        Response response = graphPost(body);
+        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
 
         String id = response.path("data.character.id");
         String name = response.path("data.character.name");
@@ -89,8 +97,8 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
-        response.then().statusCode(200);
+        Response response = graphPost(body);
+        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
 
         assertThat((Object) response.path("errors")).isNull();
         assertThat((String) response.path("data.character.id")).isEqualTo("2");
@@ -106,8 +114,8 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
-        response.then().statusCode(200);
+        Response response = graphPost(body);
+        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
 
         String episodeName = response.path("data.episode.name");
         List<?> characters = response.path("data.episode.characters");
@@ -129,8 +137,8 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
-        response.then().statusCode(200);
+        Response response = graphPost(body);
+        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
 
         Object character = response.path("data.character");
         Object errors = response.path("errors");
@@ -151,12 +159,12 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
+        Response response = graphPost(body);
 
         // GraphQL spec allows 200 or 400 for syntax errors; both are valid
         assertThat(response.statusCode())
                 .as("Status should be 200 or 400 for a malformed query")
-                .isIn(200, 400);
+                .isIn(SuccessStatusCodes.OK.getStatusCode(), FailedStatusCodes.BAD_REQUEST.getStatusCode());
 
         List<?> errors = response.path("errors");
         assertThat(errors).as("Syntax error should produce errors array").isNotNull().isNotEmpty();
@@ -174,11 +182,11 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphqlSpec().body(body).when().post();
+        Response response = graphPost(body);
 
         assertThat(response.statusCode())
                 .as("Status should be 200 or 400 for a field validation error")
-                .isIn(200, 400);
+                .isIn(SuccessStatusCodes.OK.getStatusCode(), FailedStatusCodes.BAD_REQUEST.getStatusCode());
 
         List<?> errors = response.path("errors");
         assertThat(errors).as("Non-existent field should produce validation errors").isNotNull().isNotEmpty();
