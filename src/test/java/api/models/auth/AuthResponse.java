@@ -1,6 +1,5 @@
-package api.models;
+package api.models.auth;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -8,9 +7,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AuthResponse {
 
-    @JsonProperty("token")
     private String token;
-
-    @JsonProperty("reason")
     private String reason;
 }
