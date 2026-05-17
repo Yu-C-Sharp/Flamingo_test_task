@@ -1,48 +1,52 @@
 package integration;
 
-import api.models.Booking;
-import api.models.BookingDates;
-import com.microsoft.playwright.*;
+import api.models.book.Book;
+import api.models.book.BooksResponse;
+import api.utils.enums.SuccessStatusCodes;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
 import config.TestConfig;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
-import org.junit.jupiter.api.*;
-import ui.pages.WebTablePage;
+import io.restassured.response.Response;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import ui.pages.BookStorePage;
 
-import static api.helpers.ApiHelper.*;
+import static api.helpers.ApiHelper.getBookStoreBooks;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Tag("integration")
-@Feature("API + UI Integration")
+@Feature("API + UI Integration — Book Store")
 class ApiUiIntegrationTest {
 
     private static Playwright playwright;
     private static Browser browser;
+    private static Book selectedBook;
 
     private BrowserContext context;
     private Page page;
 
-    private static String token;
-    private static int bookingId;
-    private static Booking booking;
-
     @BeforeAll
-    static void setUpApiAndBrowser() {
-        token = getAuthToken();
+    static void setUp() {
+        Response response = getBookStoreBooks();
+        assertThat(response.statusCode())
+                .as("GET /BookStore/v1/Books should return 200")
+                .isEqualTo(SuccessStatusCodes.OK.getStatusCode());
 
-        booking = Booking.builder()
-                .firstname("Integration")
-                .lastname("Tester")
-                .totalprice(500)
-                .depositpaid(true)
-                .bookingdates(BookingDates.builder()
-                        .checkin("2025-06-01")
-                        .checkout("2025-06-07")
-                        .build())
-                .additionalneeds("Airport transfer")
-                .build();
+        BooksResponse booksResponse = response.as(BooksResponse.class);
+        assertThat(booksResponse.getBooks())
+                .as("Book store must contain at least one book")
+                .isNotEmpty();
 
-        bookingId = createBooking(booking);
+        selectedBook = booksResponse.getBooks().get(0);
 
         playwright = Playwright.create();
         browser = playwright.chromium().launch(
@@ -52,14 +56,6 @@ class ApiUiIntegrationTest {
 
     @AfterAll
     static void tearDown() {
-        deleteBooking(bookingId, token);
-
-        int status = bookerSpec()
-                .when()
-                .get("/booking/" + bookingId)
-                .statusCode();
-        assertThat(status).as("Deleted booking should return 404 (or 418 Heroku quirk)").isIn(404, 418);
-
         browser.close();
         playwright.close();
     }
@@ -77,48 +73,16 @@ class ApiUiIntegrationTest {
     }
 
     @Test
-    @Description("Create booking via API, add the same person to Web Table via UI, verify record, then clean up via API")
-    void shouldCreateBookingViaApiAndVerifyInUI() {
-        // Verify booking was created via API
-        assertThat(bookingId).isPositive();
+    @Description("Book retrieved via API should appear in the Book Store UI")
+    void shouldVerifyApiBookAppearsInUI() {
+        assertThat(selectedBook.getIsbn()).isNotBlank();
+        assertThat(selectedBook.getTitle()).isNotBlank();
+        assertThat(selectedBook.getAuthor()).isNotBlank();
 
-        io.restassured.response.Response apiResponse = bookerSpec()
-                .when()
-                .get("/booking/" + bookingId);
+        page.navigate(TestConfig.DEMOQA_BOOKS_URL);
 
-        assertThat(apiResponse.statusCode()).as("Expected 200 or 418 (Heroku quirk)").isIn(200, 418);
-
-        // If 418, fall back to the known source data — booking object has the same values
-        Booking fetched = apiResponse.statusCode() == 200
-                ? apiResponse.as(Booking.class)
-                : booking;
-
-        assertThat(fetched.getFirstname()).isEqualTo(booking.getFirstname());
-        assertThat(fetched.getLastname()).isEqualTo(booking.getLastname());
-
-        // Open Web Tables and add a record with the data from the API
-        page.navigate(TestConfig.DEMOQA_WEBTABLES_URL);
-        page.evaluate("document.querySelectorAll('#fixedban, iframe').forEach(e => e.remove())");
-        WebTablePage tablePage = new WebTablePage(page);
-
-        tablePage.addRecord(
-                fetched.getFirstname(),
-                fetched.getLastname(),
-                "integration@test.com",
-                "30",
-                String.valueOf(fetched.getTotalprice()),
-                "QA"
-        );
-
-        // Search and verify the record is present in the UI
-        tablePage.search(fetched.getFirstname());
-
-        assertThat(tablePage.isRecordVisible(fetched.getFirstname()))
-                .as("Record created from API data should be visible in the UI table")
-                .isTrue();
-
-        assertThat(tablePage.isRecordVisible(fetched.getLastname()))
-                .as("Last name from API data should be visible in the UI table")
-                .isTrue();
+        BookStorePage bookStorePage = new BookStorePage(page);
+        bookStorePage.searchBook(selectedBook.getTitle());
+        bookStorePage.waitForBookVisible(selectedBook.getTitle());
     }
 }
