@@ -12,6 +12,7 @@ public class ApiSender {
         return spec
                 .body(body)
                 .when()
+                .log().all()
                 .post(endpoint)
                 .then().log().all()
                 .extract()
@@ -51,6 +52,7 @@ public class ApiSender {
         return spec
                 .when()
                 .queryParams(queryParams)
+                .log().all()
                 .get(endpoint)
                 .then().log().all()
                 .extract()
