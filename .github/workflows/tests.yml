@@ -28,7 +28,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Install Playwright browsers and system dependencies
-        run: mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps chromium"
+        run: mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps chromium" -Dexec.classpathScope=test
 
       - name: Run all tests
         run: mvn clean test
@@ -45,5 +45,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-screenshots
-          path: test-screenshots/
+          path: screenshots/
           if-no-files-found: ignore
