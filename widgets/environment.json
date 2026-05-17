@@ -1,0 +1,1 @@
+[{"values":["https://restful-booker.herokuapp.com"],"name":"Booker.URL"},{"values":["true"],"name":"Browser.Headless"},{"values":["30000"],"name":"Browser.Timeout.ms"},{"values":["https://demoqa.com"],"name":"DemoQA.URL"},{"values":["https://rickandmortyapi.com/graphql"],"name":"GraphQL.URL"},{"values":["21.0.11"],"name":"Java.Version"},{"values":["Linux"],"name":"OS"}]

@@ -1,0 +1,52 @@
+<div>Status code 400 </div>
+
+
+<h4>Body</h4>
+<div>
+    <pre class="preformated-text">
+{
+    &quot;errors&quot;: [
+        {
+            &quot;message&quot;: &quot;The request did not contain a valid GraphQL request.  Batch queries and APQ request are not currently supported for this API. Please ensure that your request contains a valid query and try again.&quot;,
+            &quot;extensions&quot;: {
+                &quot;stellate&quot;: {
+                    &quot;code&quot;: &quot;INVALID_QUERY&quot;,
+                    &quot;details&quot;: {
+                        
+                    }
+                }
+            }
+        }
+    ]
+}    </pre>
+</div>
+
+<h4>Headers</h4>
+<div>
+        <div>Server: cloudflare</div>
+        <div>CF-RAY: 9fd63e7aad08cd36-SJC</div>
+        <div>stellate-rate-limit-decision: blocked; reason=invalid-query</div>
+        <div>access-control-allow-headers: *</div>
+        <div>x-frame-options: SAMEORIGIN</div>
+        <div>Connection: keep-alive</div>
+        <div>x-served-by: cache-vie6360-VIE</div>
+        <div>cf-cache-status: DYNAMIC</div>
+        <div>expect-ct: max-age=86400, enforce</div>
+        <div>Date: Sun, 17 May 2026 23:01:27 GMT</div>
+        <div>access-control-allow-methods: POST, GET, HEAD, OPTIONS</div>
+        <div>access-control-expose-headers: *</div>
+        <div>access-control-allow-origin: *</div>
+        <div>access-control-allow-credentials: true</div>
+        <div>access-control-max-age: 600</div>
+        <div>x-xss-protection: 1; mode=block</div>
+        <div>Nel: {&quot;report_to&quot;:&quot;cf-nel&quot;,&quot;success_fraction&quot;:0.0,&quot;max_age&quot;:604800}</div>
+        <div>x-content-type-options: nosniff</div>
+        <div>x-robots-tag: noindex</div>
+        <div>Report-To: {&quot;group&quot;:&quot;cf-nel&quot;,&quot;max_age&quot;:604800,&quot;endpoints&quot;:[{&quot;url&quot;:&quot;https://a.nel.cloudflare.com/report/v4?s=eIU0AdcxY7ys0iDVqwnxxpMsAAbf8HbhgbFFOFk1UmNPIoTxSz31QeB5yYflgjWwowilJcwR%2Fjnm%2Bo0Q2OR6qPd6vAKpAZ3GojW5rCJZ%2F8Unx1hO1ZYO%2BeMeG%2BiQ5XT1UsCsFm%2FJ&quot;}]}</div>
+        <div>referrer-policy: same-origin</div>
+        <div>Content-Length: 286</div>
+        <div>alt-svc: h3=&quot;:443&quot;; ma=86400</div>
+        <div>Content-Type: application/json</div>
+</div>
+
+
