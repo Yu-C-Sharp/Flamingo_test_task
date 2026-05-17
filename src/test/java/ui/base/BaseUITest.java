@@ -26,7 +26,8 @@ public abstract class BaseUITest {
     protected Page page;
 
     @BeforeAll
-    static void launchBrowser() {
+    static void launchBrowser() throws IOException {
+        Files.createDirectories(Paths.get("screenshots"));
         playwright = Playwright.create();
         browser = playwright.chromium().launch(
                 new BrowserType.LaunchOptions()
