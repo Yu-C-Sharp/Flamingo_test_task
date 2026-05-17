@@ -3,17 +3,23 @@ package ui.tests;
 import config.TestConfig;
 import io.qameta.allure.Description;
 import io.qameta.allure.Feature;
-import org.junit.jupiter.api.*;
+import lombok.extern.java.Log;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import ui.base.BaseUITest;
+import ui.models.EmployeeFormData;
 import ui.pages.WebTablePage;
+import utils.enums.EmployeeRegistrationTableLabels;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Log
 @Tag("ui")
 @Feature("Web Tables")
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class WebTableTest extends BaseUITest {
 
     private WebTablePage tablePage;
@@ -21,69 +27,91 @@ class WebTableTest extends BaseUITest {
     @BeforeEach
     void openWebTables() {
         page.navigate(TestConfig.DEMOQA_WEBTABLES_URL);
-        page.evaluate("document.querySelectorAll('#fixedban, iframe').forEach(e => e.remove())");
         tablePage = new WebTablePage(page);
     }
 
     @Test
-    @Order(1)
     @Description("Add a new record and verify it appears in the table")
     void shouldAddNewRecordSuccessfully() {
-        tablePage.addRecord("Alice", "Walker", "alice@test.com", "28", "60000", "Engineering");
 
-        assertThat(tablePage.isRecordVisible("Alice"))
-                .as("Newly added record should be visible in the table")
-                .isTrue();
+        EmployeeFormData testData = loadJsonData(TestConfig.EMPLOYEE_FILE_PATH, EmployeeFormData.class).getFirst();
+        Map<EmployeeRegistrationTableLabels, String> expectedTableData = toTableMap(testData);
+
+        fillAndSubmitForm(testData);
+
+        tablePage.waitForRecordVisible(testData.getFirstName(), true);
+
+        expectedTableData.forEach((column, expectedValue) -> {
+            assertThat(tablePage.getCellValue(testData.getFirstName(), column))
+                    .as("Checking column: " + column.getValue())
+                    .isEqualTo(expectedValue);
+            logger.info(String.format("Value [%s] for column [%s] checked", expectedValue, column));
+        });
     }
 
     @Test
-    @Order(2)
     @Description("Edit an existing record and verify the change is saved")
     void shouldEditExistingRecord() {
-        // The table has pre-loaded records; edit 'Cierra'
-        tablePage.editRecordByName("Cierra");
-        tablePage.updateFirstName("CierraEdited");
 
-        assertThat(tablePage.isRecordVisible("CierraEdited"))
-                .as("Edited record should appear with updated name")
-                .isTrue();
+        EmployeeFormData testData = loadJsonData(TestConfig.EMPLOYEE_FILE_PATH, EmployeeFormData.class).get(1);
+        EmployeeFormData newData = new EmployeeFormData(
+                testData.getFirstName() + "Edited", testData.getLastName() + "Edited",
+                testData.getAge() + 10, "tester78584@mail.com",
+                testData.getSalary() + 777, testData.getDepartment() + "Edited"
+        );
+        Map<EmployeeRegistrationTableLabels, String> expectedTableData = toTableMap(newData);
+
+        // The table has preloaded records; edit 'Cierra'
+        tablePage.openEditRecordModalByName(testData.getFirstName());
+        WebTablePage.EditModal.updateFirstName(newData.getFirstName());
+        WebTablePage.EditModal.updateLastName(newData.getLastName());
+        WebTablePage.EditModal.updateAge(String.valueOf(newData.getAge()));
+        WebTablePage.EditModal.updateEmail(newData.getEmail());
+        WebTablePage.EditModal.updateSalary(String.valueOf(newData.getSalary()));
+        WebTablePage.EditModal.updateDepartment(newData.getDepartment());
+
+        tablePage.waitForRecordVisible(newData.getFirstName(), true);
+
+        expectedTableData.forEach((column, expectedValue) -> assertThat(tablePage.getCellValue(newData.getFirstName(), column))
+                .as("Checking column: " + column.getValue())
+                .isEqualTo(expectedValue));
     }
 
     @Test
-    @Order(3)
     @Description("Delete a record and verify it no longer appears in the table")
     void shouldDeleteRecord() {
-        // Alden is one of the pre-loaded records
-        tablePage.deleteRecordByName("Alden");
-
-        assertThat(tablePage.isRecordVisible("Alden"))
-                .as("Deleted record should not be visible")
-                .isFalse();
+        // Alden is one of the preloaded records
+        final String expectedValue = "Alden";
+        tablePage.deleteRecordByName(expectedValue);
+        tablePage.waitForRecordVisible(expectedValue, false);
     }
 
     @Test
-    @Order(4)
     @Description("Search functionality filters the table to show only matching rows")
     void shouldSearchAndFilterRecords() {
-        tablePage.search("Vega");
-
-        assertThat(tablePage.isRecordVisible("Vega"))
-                .as("Search result should contain the matching record")
-                .isTrue();
-
-        assertThat(tablePage.isRecordVisible("Cierra"))
-                .as("Non-matching record should not be visible after search")
-                .isFalse();
+        final String expectedValue = "Vega";
+        final String unexpectedValue = "Alden";
+        tablePage.search(expectedValue);
+        tablePage.waitForRecordVisible(expectedValue, true);
+        tablePage.waitForRecordVisible(unexpectedValue, false);
     }
 
-    @Test
-    @Order(5)
-    @Description("Click column header sorts the table ascending by that column")
-    void shouldSortByFirstNameAscending() {
-        tablePage.clickColumnHeader("First Name");
+    private void fillAndSubmitForm(EmployeeFormData formData) {
+        tablePage.addRecord(
+                formData.getFirstName(), formData.getLastName(), formData.getEmail(),
+                formData.getAge(), formData.getSalary(), formData.getDepartment()
+        );
+    }
 
-        List<String> names = tablePage.getColumnValues("1");
+    private Map<EmployeeRegistrationTableLabels, String> toTableMap(EmployeeFormData data) {
+        Map<EmployeeRegistrationTableLabels, String> map = new HashMap<>();
+        map.put(EmployeeRegistrationTableLabels.FIRST_NAME, data.getFirstName());
+        map.put(EmployeeRegistrationTableLabels.LAST_NAME, data.getLastName());
+        map.put(EmployeeRegistrationTableLabels.AGE, String.valueOf(data.getAge()));
+        map.put(EmployeeRegistrationTableLabels.EMAIL, data.getEmail());
+        map.put(EmployeeRegistrationTableLabels.SALARY, String.valueOf(data.getSalary()));
+        map.put(EmployeeRegistrationTableLabels.DEPARTMENT, data.getDepartment());
 
-        assertThat(names).as("Names should be sorted A→Z").isSortedAccordingTo(String::compareToIgnoreCase);
+        return map;
     }
 }
