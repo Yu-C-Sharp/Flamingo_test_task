@@ -17,6 +17,10 @@ public class DateHelper {
         return LocalDate.now().format(DateTimeFormatter.ofPattern(targetDatePattern));
     }
 
+    public static String getTomorrow(String targetDatePattern) {
+        return addDaysToLocalDate(targetDatePattern, getToday(targetDatePattern), 1);
+    }
+
     public static String addDaysToLocalDate(String datePattern, String dateForAdding, int daysCount) {
         LocalDate targetDate = formatToLocalDateFromStringByPattern(datePattern, dateForAdding);
 
