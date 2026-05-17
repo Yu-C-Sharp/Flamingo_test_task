@@ -1,0 +1,28 @@
+[
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "gender": "Male",
+    "phone": "1234567890",
+    "birth": { "month": "May", "year": "1990", "day": 15 },
+    "subject": "Maths",
+    "hobby": "Sports",
+    "address": "123 Main Street, City",
+    "state": "NCR",
+    "city": "Delhi"
+  },
+  {
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "email": "jane.smith@example.com",
+    "gender": "Female",
+    "phone": "9876543210",
+    "birth": { "month": "June", "year": "1992", "day": 20 },
+    "subject": "Physics",
+    "hobby": "Music",
+    "address": "456 Elm Street, City",
+    "state": "NCR",
+    "city": "Gurgaon"
+  }
+]
