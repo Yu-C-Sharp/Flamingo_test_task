@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static api.helpers.ApiHelper.graphPost;
+import static api.helpers.ApiHelper.graphPostRequest;
+import static api.utils.enums.GraphQlPaths.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -21,6 +22,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("api")
 @Feature("GraphQL Rick and Morty")
 class GraphQlTest {
+
+    String expectedId;
+    String expectedName;
+
+    final int firstArrayIndex = 0;
 
     // ─── Positive ───────────────────────────────────────────────────────────────
 
@@ -33,37 +39,30 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphPost(body);
-        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
+        Response response = graphPostRequest(body, SuccessStatusCodes.OK);
 
-        List<?> results = response.path("data.characters.results");
-        Integer pages = response.path("data.characters.info.pages");
+        List<?> results = response.path(CHARACTERS_RESULTS.getPath());
+        Integer pagesCount = response.path(CHARACTERS_INFO_PAGES.getPath());
 
+        assertThat(pagesCount).as("Total pages should be positive").isPositive();
         assertThat(results).as("First page should contain 20 characters").hasSize(20);
-        assertThat(pages).as("Total pages should be positive").isPositive();
     }
 
     @Test
     @Description("Pagination offset — page 1 and page 2 must return different character IDs")
     void shouldReturnDifferentResultsOnDifferentPages() {
-        String page1 = """
+        String pageFirstBody = """
                 { "query": "{ characters(page: 1) { results { id } } }" }
                 """;
-        String page2 = """
+        String pageSecondBody = """
                 { "query": "{ characters(page: 2) { results { id } } }" }
                 """;
 
-        List<String> ids1 = graphPost(page1).then()
-                .statusCode(SuccessStatusCodes.OK.getStatusCode())
-                .extract()
-                .jsonPath()
-                .getList("data.characters.results.id");
+        List<String> ids1 = graphPostRequest(pageFirstBody, SuccessStatusCodes.OK).jsonPath()
+                .getList(CHARACTERS_RESULTS_ID.getPath());
 
-        List<String> ids2 = graphPost(page2).then()
-                .statusCode(SuccessStatusCodes.OK.getStatusCode())
-                .extract()
-                .jsonPath()
-                .getList("data.characters.results.id");
+        List<String> ids2 = graphPostRequest(pageSecondBody, SuccessStatusCodes.OK).jsonPath()
+                .getList(CHARACTERS_RESULTS_ID.getPath());
 
         assertThat(ids1).doesNotContainAnyElementsOf(ids2);
     }
@@ -71,59 +70,75 @@ class GraphQlTest {
     @Test
     @Description("Query a single character by ID returns the expected entity")
     void shouldGetSingleCharacterById() {
-        String body = """
+
+        expectedId = "1";
+        expectedName = "Rick Sanchez";
+
+        String body = String.format("""
                 {
-                  "query": "{ character(id: 1) { id name status species } }"
+                  "query": "{ character(id: %s) { id name status species } }"
                 }
-                """;
+                """,
+                expectedId
+        );
 
-        Response response = graphPost(body);
-        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
+        Response response = graphPostRequest(body, SuccessStatusCodes.OK);
 
-        String id = response.path("data.character.id");
-        String name = response.path("data.character.name");
+        String actualId = response.path(DATA_CHARACTER_ID.getPath());
+        String actualName = response.path(DATA_CHARACTER_NAME.getPath());
 
-        assertThat(id).isEqualTo("1");
-        assertThat(name).isEqualTo("Rick Sanchez");
+        assertThat(actualId).isEqualTo(expectedId);
+        assertThat(actualName).isEqualTo(expectedName);
     }
 
     @Test
     @Description("Query using GraphQL variables (no string interpolation) — character by variable ID")
     void shouldQueryUsingGraphQLVariables() {
-        String body = """
+        expectedId = "2";
+        expectedName = "Morty Smith";
+
+        String body = String.format("""
                 {
                   "query": "query GetCharacter($id: ID!) { character(id: $id) { id name } }",
-                  "variables": { "id": "2" }
+                  "variables": { "id": %s }
                 }
-                """;
+                """,
+                expectedId
+        );
 
-        Response response = graphPost(body);
-        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
+        Response response = graphPostRequest(body, SuccessStatusCodes.OK);
 
-        assertThat((Object) response.path("errors")).isNull();
-        assertThat((String) response.path("data.character.id")).isEqualTo("2");
-        assertThat((String) response.path("data.character.name")).isEqualTo("Morty Smith");
+        String actualId = response.path(DATA_CHARACTER_ID.getPath());
+        String actualName = response.path(DATA_CHARACTER_NAME.getPath());
+
+        assertThat((Object) response.path(ERRORS.getPath())).isNull();
+        assertThat(actualId).isEqualTo(expectedId);
+        assertThat(actualName).isEqualTo(expectedName);
     }
 
     @Test
     @Description("Nested fields across types — episode → characters → name")
     void shouldQueryNestedFieldsEpisodeCharacters() {
-        String body = """
+        expectedId = "1";
+
+        String body = String.format("""
                 {
-                  "query": "{ episode(id: 1) { id name air_date characters { id name species } } }"
+                  "query": "{ episode(id: %d) { id name air_date characters { id name species } } }"
                 }
-                """;
+                """,
+                Integer.parseInt(expectedId)
+        );
 
-        Response response = graphPost(body);
-        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
+        Response response = graphPostRequest(body, SuccessStatusCodes.OK);
 
-        String episodeName = response.path("data.episode.name");
-        List<?> characters = response.path("data.episode.characters");
-        String firstCharName = response.path("data.episode.characters[0].name");
+        String actualEpisodeName = response.path(DATA_EPISODE_NAME.getPath());
+        List<?> actualCharacters = response.path(DATA_EPISODE_CHARACTERS.getPath());
 
-        assertThat(episodeName).isNotNull().isNotEmpty();
-        assertThat(characters).isNotEmpty();
-        assertThat(firstCharName).isNotNull().isNotEmpty();
+        String actualFirstCharacterName = response.path(String.format(DATA_EPISODE_CHARACTERS_NAME.getPath(), firstArrayIndex));
+
+        assertThat(actualEpisodeName).isNotNull().isNotEmpty();
+        assertThat(actualCharacters).isNotEmpty();
+        assertThat(actualFirstCharacterName).isNotNull().isNotEmpty();
     }
 
     // ─── Negative ───────────────────────────────────────────────────────────────
@@ -131,22 +146,21 @@ class GraphQlTest {
     @Test
     @Description("Invalid character ID returns HTTP 200 with data.character = null")
     void shouldReturnNullForInvalidCharacterId() {
-        String body = """
+        final int invalidCharacterId = 999999;
+
+        String body = String.format("""
                 {
-                  "query": "{ character(id: 999999) { id name } }"
+                  "query": "{ character(id: %d) { id name } }"
                 }
-                """;
+                """,
+                invalidCharacterId
+        );
 
-        Response response = graphPost(body);
-        response.then().statusCode(SuccessStatusCodes.OK.getStatusCode());
+        Response response = graphPostRequest(body, SuccessStatusCodes.OK);
 
-        Object character = response.path("data.character");
-        Object errors = response.path("errors");
+        Object character = response.path(DATA_CHARACTER.getPath());
 
-        boolean isNullData = character == null;
-        boolean hasErrors = errors != null;
-        assertThat(isNullData || hasErrors)
-                .as("Expected data.character=null or errors for non-existent ID")
+        assertThat(character == null).as("Expected returns null for non-existent ID")
                 .isTrue();
     }
 
@@ -159,18 +173,17 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphPost(body);
+        Response response = graphPostRequest(body, FailedStatusCodes.BAD_REQUEST);
 
-        // GraphQL spec allows 200 or 400 for syntax errors; both are valid
-        assertThat(response.statusCode())
-                .as("Status should be 200 or 400 for a malformed query")
-                .isIn(SuccessStatusCodes.OK.getStatusCode(), FailedStatusCodes.BAD_REQUEST.getStatusCode());
+        List<?> errors = response.path(ERRORS.getPath());
+        assertThat(errors).as("Syntax error should produce errors array")
+                .isNotNull()
+                .isNotEmpty();
 
-        List<?> errors = response.path("errors");
-        assertThat(errors).as("Syntax error should produce errors array").isNotNull().isNotEmpty();
-
-        String firstMessage = response.path("errors[0].message");
-        assertThat(firstMessage).isNotNull().isNotEmpty();
+        String firstMessage = response.path(String.format(ERRORS_MESSAGE.getPath(), firstArrayIndex));
+        assertThat(firstMessage).as("Expected error message for syntax error")
+                .isNotNull()
+                .isNotEmpty();
     }
 
     @Test
@@ -182,16 +195,15 @@ class GraphQlTest {
                 }
                 """;
 
-        Response response = graphPost(body);
+        Response response = graphPostRequest(body, FailedStatusCodes.BAD_REQUEST);
 
-        assertThat(response.statusCode())
-                .as("Status should be 200 or 400 for a field validation error")
-                .isIn(SuccessStatusCodes.OK.getStatusCode(), FailedStatusCodes.BAD_REQUEST.getStatusCode());
+        List<?> errors = response.path(ERRORS.getPath());
+        assertThat(errors).as("Non-existent field should produce validation errors")
+                .isNotNull()
+                .isNotEmpty();
 
-        List<?> errors = response.path("errors");
-        assertThat(errors).as("Non-existent field should produce validation errors").isNotNull().isNotEmpty();
-
-        String message = response.path("errors[0].message");
-        assertThat(message).as("Error message should reference the unknown field").isNotNull();
+        String message = response.path(String.format(ERRORS_MESSAGE.getPath(), firstArrayIndex));
+        assertThat(message).as("Error message should reference the unknown field")
+                .isNotNull();
     }
 }
