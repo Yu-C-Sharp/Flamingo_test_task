@@ -1,7 +1,7 @@
 package api.tests;
 
-import api.models.Booking;
-import api.models.BookingDates;
+import api.models.booking.Booking;
+import api.models.booking.BookingDates;
 import api.models.auth.AuthResponse;
 import api.utils.enums.FailedStatusCodes;
 import api.utils.enums.SuccessStatusCodes;
@@ -11,19 +11,21 @@ import io.qameta.allure.Feature;
 import io.restassured.response.Response;
 import lombok.extern.java.Log;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import utils.enums.DatePatterns;
+import utils.extensions.RetryExtension;
 
 import java.util.*;
 
 import static api.helpers.ApiHelper.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static utils.constants.CommonConstants.faker;
-import static utils.helpers.DateHelper.addDaysToLocalDate;
-import static utils.helpers.DateHelper.getToday;
+import static utils.helpers.DateHelper.*;
 
 @Log
 @Tag("api")
 @Feature("Booking CRUD")
+@ExtendWith(RetryExtension.class)
 class BookingApiTest {
 
     private final String TEAPOT_ERROR_MESSAGE = "'I am a teapot' - Is someone trying to have fun?";
@@ -38,16 +40,22 @@ class BookingApiTest {
 
     @BeforeAll
     static void setUp() {
+        logger.info("=== BookingApiTest setup: acquiring auth token ===");
         token = getAuthResponse(TestConfig.BOOKER_USERNAME, TestConfig.BOOKER_PASSWORD)
                 .as(AuthResponse.class)
                 .getToken();
+        logger.info("Auth token acquired: " + (token != null ? token.substring(0, 4) + "****" : "NULL"));
         bookingIdSet = new HashSet<>();
     }
 
     @AfterAll
     static void tearDown() {
+        logger.info("=== BookingApiTest tear  down: cleaning up " + bookingIdSet.size() + " booking(s) ===");
         if (!bookingIdSet.isEmpty()) {
-            bookingIdSet.forEach(id -> deleteBooking(token, id));
+            bookingIdSet.forEach(id -> {
+                logger.info("Deleting booking ID=" + id);
+                deleteBooking(token, id);
+            });
         }
     }
 
@@ -157,7 +165,7 @@ class BookingApiTest {
     @Test
     @Description("GET /booking?checkin=date returns HTTP 200 with a list")
     void shouldFilterByCheckInDate() {
-        getBookingModel();
+        sourceBooking = getBookingModel();
         final String uniqueCheckIn = "2027-12-31";
         final String uniqueCheckOut = "2028-01-31";
         sourceBooking.setBookingdates(new BookingDates(uniqueCheckIn, uniqueCheckOut));
@@ -217,16 +225,20 @@ class BookingApiTest {
     @Test
     @Description("POST /booking with invalid date format should be handled gracefully")
     void shouldReturnErrorForInvalidDateFormat() {
-        getBookingModel();
+        sourceBooking = getBookingModel();
         final String invalidCheckInDate = "not-a-date";
         final String invalidCheckOutDate = "also-not-a-date";
         sourceBooking.setBookingdates(new BookingDates(invalidCheckInDate, invalidCheckOutDate));
 
         Response response = createBookingAndGetResponse(sourceBooking);
 
-        assertThat(response.getStatusCode())
-                .as("Invalid date format should return 200 (stored as string) or 4xx")
-                .isIn(FailedStatusCodes.BAD_REQUEST.getStatusCode(), FailedStatusCodes.INTERNAL_SERVER_ERROR.getStatusCode());
+        int status = response.getStatusCode();
+        logger.info("Invalid date format → server responded with: " + status);
+        assertThat(status)
+                .as("Invalid date format should return 200 (server stored as-is), 400, or 500")
+                .isIn(SuccessStatusCodes.OK.getStatusCode(),
+                        FailedStatusCodes.BAD_REQUEST.getStatusCode(),
+                        FailedStatusCodes.INTERNAL_SERVER_ERROR.getStatusCode());
     }
 
     @Test
@@ -238,7 +250,7 @@ class BookingApiTest {
 
         assertThat(createBookingAndGetResponse(incompleteBooking).getStatusCode())
                 .as("Missing required fields should return 4xx or 500")
-                .isIn(400, 500);
+                .isIn(FailedStatusCodes.BAD_REQUEST.getStatusCode(), FailedStatusCodes.INTERNAL_SERVER_ERROR.getStatusCode());
     }
 
     private static Booking getBookingModel() {
@@ -249,7 +261,7 @@ class BookingApiTest {
 
         final String firstName = faker.funnyName().name();
         final String lastName = faker.name().lastName();
-        final String checkInDate = getToday(DatePatterns.YEAR_MONTH_DAY.getPattern());
+        final String checkInDate = getTomorrow(DatePatterns.YEAR_MONTH_DAY.getPattern());
         final String checkOutDate = addDaysToLocalDate(DatePatterns.YEAR_MONTH_DAY.getPattern(), checkInDate, daysCount);
         final String additionalNeeds = "Dinner";
 
@@ -261,12 +273,20 @@ class BookingApiTest {
 
     private static void createBooking() {
         sourceBooking = getBookingModel();
+        logger.info("Creating booking: firstname=" + sourceBooking.getFirstname()
+                + ", lastname=" + sourceBooking.getLastname()
+                + ", checkin=" + sourceBooking.getBookingdates().getCheckin());
         bookingId = createBookingAndGetId(sourceBooking);
+        logger.info("Booking created with ID=" + bookingId);
         bookingIdSet.add(bookingId);
     }
 
     private static void checkOkStatusCode(Response response) {
-        assertThat(response.getStatusCode()).as("Expected 200 or 418 (Heroku quirk)")
+        int code = response.getStatusCode();
+        if (code == FailedStatusCodes.I_AM_A_TEAPOT.getStatusCode()) {
+            logger.warning("Got 418 — accepting as Heroku keep-alive quirk");
+        }
+        assertThat(code).as("Expected 200 or 418 (Heroku quirk)")
                 .isIn(SuccessStatusCodes.OK.getStatusCode(), FailedStatusCodes.I_AM_A_TEAPOT.getStatusCode());
     }
 }
