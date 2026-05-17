@@ -13,8 +13,8 @@ public class TestConfig {
             if (inputStream != null) {
                 properties.load(inputStream);
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Cannot load test.properties", e);
+        } catch (IOException exception) {
+            throw new RuntimeException("Cannot load test.properties", exception);
         }
     }
 
@@ -34,6 +34,11 @@ public class TestConfig {
     public static final String DEMOQA_BASE_URL = get("demoqa.base.url", "https://demoqa.com");
     public static final String DEMOQA_FORM_URL = DEMOQA_BASE_URL + "/automation-practice-form";
     public static final String DEMOQA_WEBTABLES_URL = DEMOQA_BASE_URL + "/webtables";
+    public static final String DEMOQA_BOOKS_URL = DEMOQA_BASE_URL + "/books";
+
+    // Test files
+    public static final String STUDENT_FILE_PATH = get("student.file.path", "");
+    public static final String EMPLOYEE_FILE_PATH = get("employee.file.path", "");
 
     private static String get(String key, String defaultValue) {
         return properties.getProperty(key, defaultValue);
