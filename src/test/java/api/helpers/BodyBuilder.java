@@ -1,7 +1,7 @@
 package api.helpers;
 
-import api.models.Booking;
-import api.models.BookingDates;
+import api.models.booking.Booking;
+import api.models.booking.BookingDates;
 import api.models.auth.AuthRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
